@@ -1,36 +1,144 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Lernai - AI-Powered Learning Platform
+
+Lernai is an AI-powered learning platform that provides personalized learning experiences based on the user's knowledge level and chosen topics. The app uses Next.js for both frontend and backend, MongoDB for data storage, and OpenAI's GPT-4 API for generating personalized learning content.
+
+## Features
+
+- User authentication (sign up, sign in, sign out)
+- Topic browsing and searching
+- Knowledge assessment
+- AI-generated personalized explanations
+- Interactive exercises
+- Progress tracking
+- Spaced repetition for better retention
+
+## Tech Stack
+
+- **Frontend**: Next.js, React, TailwindCSS
+- **Backend**: Next.js API Routes
+- **Database**: MongoDB with Mongoose
+- **Authentication**: NextAuth.js
+- **AI Integration**: OpenAI GPT-4 API
+
+## Prerequisites
+
+- Node.js (v18 or later)
+- MongoDB (local instance or MongoDB Atlas)
+- OpenAI API key
 
 ## Getting Started
 
-First, run the development server:
+### 1. Clone the repository
+
+```bash
+git clone <repository-url>
+cd lernai
+```
+
+### 2. Install dependencies
+
+```bash
+npm install
+```
+
+### 3. Set up environment variables
+
+Create a `.env.local` file in the root directory with the following variables:
+
+```
+MONGODB_URI=mongodb://localhost:27017/lernai
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your-secret-key-change-in-production
+OPENAI_API_KEY=your-openai-api-key
+```
+
+Replace the values with your actual MongoDB URI and OpenAI API key.
+
+### 4. Run the development server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the application.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Project Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `src/app`: Next.js app router pages and API routes
+- `src/components`: Reusable React components
+- `src/lib`: Utility functions and configuration
+- `src/models`: MongoDB models
+- `src/providers`: React context providers
+- `src/types`: TypeScript type definitions
 
-## Learn More
+## API Routes
 
-To learn more about Next.js, take a look at the following resources:
+### Authentication
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `POST /api/auth/register`: Register a new user
+- `POST /api/auth/[...nextauth]`: NextAuth.js authentication endpoints
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### User
 
-## Deploy on Vercel
+- `GET /api/user/profile`: Get user profile
+- `PUT /api/user/profile`: Update user profile
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Topics
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `GET /api/topics`: Get all topics
+- `POST /api/topics`: Create a new topic
+- `GET /api/topics/[id]`: Get a specific topic
+- `PUT /api/topics/[id]`: Update a specific topic
+- `DELETE /api/topics/[id]`: Delete a specific topic
+
+### Learning
+
+- `GET /api/learning/progress`: Get learning progress
+- `POST /api/learning/progress`: Update learning progress
+
+### AI Integration
+
+- `POST /api/ai/generate-explanation`: Generate topic explanation
+- `POST /api/ai/generate-exercise`: Generate exercise
+- `POST /api/ai/evaluate-answer`: Evaluate user's answer
+
+## Development
+
+### Adding New Topics
+
+To add new topics to the database, you can use the API endpoint:
+
+```bash
+curl -X POST http://localhost:3000/api/topics \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Introduction to JavaScript",
+    "description": "Learn the basics of JavaScript programming language",
+    "category": "computer-science",
+    "difficulty": "Easy",
+    "subtopics": ["Variables", "Data Types", "Functions", "Control Flow"]
+  }'
+```
+
+### Database Models
+
+The application uses the following MongoDB models:
+
+- `User`: User accounts and authentication
+- `Topic`: Learning topics and categories
+- `LearningProgress`: User progress on topics
+
+## Deployment
+
+The application can be deployed to Vercel:
+
+```bash
+npm run build
+vercel --prod
+```
+
+Make sure to set up the environment variables in your Vercel project settings.
+
+## License
+
+[MIT](LICENSE)
