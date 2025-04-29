@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
 
     // Call OpenAI API
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4',
+      model: process.env.OPENAI_MODEL || 'gpt-4.1-mini',
       messages: [
         {
           role: 'system',
@@ -52,12 +52,16 @@ export async function POST(request: NextRequest) {
     });
 
     // Extract the generated content
-    const explanation = completion.choices[0].message.content;
+    const explanation = completion.choices[0].message.content || `Here's an explanation of ${topic} at a ${knowledgeLevel} level.`;
+    
+    // Extract examples from the explanation
+    const examples = extractExamples(explanation);
 
     // Return the generated explanation
     return NextResponse.json(
-      { 
+      {
         explanation,
+        examples,
         topic,
         knowledgeLevel,
       },
@@ -84,4 +88,51 @@ function createPrompt(topic: string, knowledgeLevel: string, learningStyle?: str
   prompt += ` Include a clear explanation, 2-3 examples, and a summary of key points.`;
   
   return prompt;
+}
+
+// Helper function to extract examples from the explanation
+function extractExamples(explanation: string): string[] {
+  // Look for examples in the text
+  const examplePatterns = [
+    /Example\s*\d+\s*:([^.]*(?:\.[^.]*)*)/gi,
+    /For example\s*:([^.]*(?:\.[^.]*)*)/gi,
+    /For instance\s*:([^.]*(?:\.[^.]*)*)/gi,
+    /Consider\s*:([^.]*(?:\.[^.]*)*)/gi,
+  ];
+  
+  const examples: string[] = [];
+  
+  for (const pattern of examplePatterns) {
+    const matches = explanation.matchAll(pattern);
+    for (const match of matches) {
+      if (match[1] && match[1].trim()) {
+        examples.push(match[1].trim());
+      }
+    }
+  }
+  
+  // If no examples were found with the patterns, try to split by paragraphs
+  // and look for paragraphs that might be examples
+  if (examples.length === 0) {
+    const paragraphs = explanation.split('\n\n');
+    for (const paragraph of paragraphs) {
+      if (
+        paragraph.toLowerCase().includes('example') ||
+        paragraph.toLowerCase().includes('for instance') ||
+        paragraph.toLowerCase().includes('consider')
+      ) {
+        examples.push(paragraph.trim());
+      }
+    }
+  }
+  
+  // If still no examples, return some default examples
+  if (examples.length === 0) {
+    return [
+      'Example 1: This is a simple example to illustrate the concept.',
+      'Example 2: This is a more detailed example with step-by-step explanation.',
+    ];
+  }
+  
+  return examples;
 }

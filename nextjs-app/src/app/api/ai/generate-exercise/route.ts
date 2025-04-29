@@ -36,11 +36,11 @@ export async function POST(request: NextRequest) {
 
     // Call OpenAI API
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4',
+      model: process.env.OPENAI_MODEL || 'gpt-4.1-mini',
       messages: [
         {
           role: 'system',
-          content: 'You are an expert educator who creates high-quality learning exercises. Your exercises are clear, relevant to the topic, and appropriate for the student\'s knowledge level.'
+          content: 'You are an expert educator who creates high-quality learning exercises. Your exercises are clear, relevant to the topic, and appropriate for the student\'s knowledge level. Always respond with valid JSON format with an "exercises" array.'
         },
         {
           role: 'user',
@@ -49,14 +49,84 @@ export async function POST(request: NextRequest) {
       ],
       temperature: 0.7,
       max_tokens: 1000,
-      response_format: { type: 'json_object' },
     });
 
     // Extract the generated content
     const exercisesJson = completion.choices[0].message.content;
     
     // Parse the JSON response
-    const exercises = exercisesJson ? JSON.parse(exercisesJson) : null;
+    let exercises;
+    try {
+      // Remove markdown code block syntax if present
+      const cleanJson = exercisesJson?.replace(/```json|```/g, '').trim();
+      exercises = cleanJson ? JSON.parse(cleanJson) : null;
+      
+      // Convert options object to array if needed
+      if (exercises && exercises.exercises) {
+        exercises.exercises = exercises.exercises.map((exercise: any) => {
+          // Check if options is an object with A, B, C, D keys
+          if (exercise.options && typeof exercise.options === 'object' && !Array.isArray(exercise.options)) {
+            const optionsArray = Object.entries(exercise.options).map(([key, value]) => {
+              // If the correctAnswer is a letter (A, B, C, D), update it to the full option text
+              if (exercise.correctAnswer === key) {
+                exercise.correctAnswer = value as string;
+              }
+              return value as string;
+            });
+            exercise.options = optionsArray;
+          }
+          return exercise;
+        });
+      }
+    } catch (error) {
+      console.error('Error parsing JSON response:', error);
+      console.log('Raw response:', exercisesJson);
+      
+      // Attempt to extract JSON from the response if it's not properly formatted
+      const jsonMatch = exercisesJson?.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          const extractedJson = JSON.parse(jsonMatch[0]);
+          exercises = {
+            exercises: extractedJson.exercises.map((exercise: any) => {
+              // Convert options object to array if needed
+              if (exercise.options && typeof exercise.options === 'object' && !Array.isArray(exercise.options)) {
+                const optionsArray = Object.entries(exercise.options).map(([key, value]) => {
+                  // If the correctAnswer is a letter (A, B, C, D), update it to the full option text
+                  if (exercise.correctAnswer === key) {
+                    exercise.correctAnswer = value as string;
+                  }
+                  return value as string;
+                });
+                exercise.options = optionsArray;
+              }
+              return exercise;
+            })
+          };
+        } catch (e) {
+          exercises = {
+            exercises: [
+              {
+                question: `Question about ${topic}?`,
+                options: ['Option A', 'Option B', 'Option C', 'Option D'],
+                correctAnswer: 'Option A'
+              }
+            ]
+          };
+        }
+      } else {
+        // Fallback to a default exercise
+        exercises = {
+          exercises: [
+            {
+              question: `Question about ${topic}?`,
+              options: ['Option A', 'Option B', 'Option C', 'Option D'],
+              correctAnswer: 'Option A'
+            }
+          ]
+        };
+      }
+    }
 
     // Return the generated exercises
     return NextResponse.json(
@@ -92,7 +162,7 @@ function createPrompt(topic: string, knowledgeLevel: string, exerciseType: strin
     prompt += ` Each exercise should have a question that requires a short answer (1-2 sentences) and provide a model answer.`;
   }
   
-  prompt += ` Format your response as a JSON object with an "exercises" array containing objects with "question", "options" (if applicable), and "correctAnswer" fields.`;
+  prompt += ` Format your response as a JSON object with an "exercises" array containing objects with "question", "options" (as an array of strings, not an object), and "correctAnswer" fields.`;
   
   return prompt;
 }

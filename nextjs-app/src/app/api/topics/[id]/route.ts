@@ -8,7 +8,7 @@ import mongoose from 'mongoose';
 // GET /api/topics/[id] - Get a specific topic
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
     // Get the session to verify the user is authenticated
@@ -21,7 +21,8 @@ export async function GET(
       );
     }
 
-    const { id } = params;
+    // Get the ID from the context params
+    const id = context.params.id;
 
     // Validate ID format
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -59,7 +60,7 @@ export async function GET(
 // PUT /api/topics/[id] - Update a specific topic (admin only)
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
     // Get the session to verify the user is authenticated
@@ -75,7 +76,8 @@ export async function PUT(
     // TODO: Add admin check here when admin functionality is implemented
     // For now, allow any authenticated user to update topics for development purposes
 
-    const { id } = params;
+    // Get the ID from the context params
+    const id = context.params.id;
 
     // Validate ID format
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -131,7 +133,7 @@ export async function PUT(
 // DELETE /api/topics/[id] - Delete a specific topic (admin only)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
     // Get the session to verify the user is authenticated
@@ -147,7 +149,8 @@ export async function DELETE(
     // TODO: Add admin check here when admin functionality is implemented
     // For now, allow any authenticated user to delete topics for development purposes
 
-    const { id } = params;
+    // Get the ID from the context params
+    const id = context.params.id;
 
     // Validate ID format
     if (!mongoose.Types.ObjectId.isValid(id)) {

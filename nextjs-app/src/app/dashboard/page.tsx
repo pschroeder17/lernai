@@ -56,13 +56,22 @@ export default function Dashboard() {
                 Based on your interests, we recommend these topics:
               </p>
               <ul className="mt-4 space-y-2">
-                <li className="p-2 hover:bg-gray-50 rounded cursor-pointer">
+                <li
+                  className="p-2 hover:bg-gray-50 rounded cursor-pointer"
+                  onClick={() => router.push('/topics/mathematics/algebra')}
+                >
                   Introduction to Mathematics
                 </li>
-                <li className="p-2 hover:bg-gray-50 rounded cursor-pointer">
+                <li
+                  className="p-2 hover:bg-gray-50 rounded cursor-pointer"
+                  onClick={() => router.push('/topics/computer-science/programming-basics')}
+                >
                   Basic Programming Concepts
                 </li>
-                <li className="p-2 hover:bg-gray-50 rounded cursor-pointer">
+                <li
+                  className="p-2 hover:bg-gray-50 rounded cursor-pointer"
+                  onClick={() => router.push('/topics/science/physics')}
+                >
                   Science Fundamentals
                 </li>
               </ul>
@@ -70,39 +79,65 @@ export default function Dashboard() {
           </div>
 
           <div className="bg-white shadow rounded-lg p-6">
-            <h2 className="text-xl font-semibold mb-4">Explore Topics</h2>
+            <h2 className="text-xl font-semibold mb-4">
+              Explore Topics
+              <button
+                className="ml-4 text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+                onClick={() => router.push('/topics')}
+              >
+                View All Topics →
+              </button>
+            </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-              <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer">
+              <div
+                className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => router.push('/topics?category=mathematics')}
+              >
                 <h3 className="font-medium">Mathematics</h3>
                 <p className="text-sm text-gray-600 mt-1">
                   Algebra, Geometry, Calculus, and more
                 </p>
               </div>
-              <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer">
+              <div
+                className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => router.push('/topics?category=computer-science')}
+              >
                 <h3 className="font-medium">Computer Science</h3>
                 <p className="text-sm text-gray-600 mt-1">
                   Programming, Algorithms, Data Structures
                 </p>
               </div>
-              <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer">
+              <div
+                className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => router.push('/topics?category=science')}
+              >
                 <h3 className="font-medium">Science</h3>
                 <p className="text-sm text-gray-600 mt-1">
                   Physics, Chemistry, Biology
                 </p>
               </div>
-              <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer">
+              <div
+                className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => router.push('/topics?category=languages')}
+              >
                 <h3 className="font-medium">Languages</h3>
                 <p className="text-sm text-gray-600 mt-1">
                   English, Spanish, German, French
                 </p>
               </div>
-              <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer">
+              <div
+                className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => router.push('/topics?category=history')}
+              >
                 <h3 className="font-medium">History</h3>
                 <p className="text-sm text-gray-600 mt-1">
                   World History, Ancient Civilizations
                 </p>
               </div>
-              <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer">
+              <div
+                className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => router.push('/topics?category=arts')}
+              >
                 <h3 className="font-medium">Arts</h3>
                 <p className="text-sm text-gray-600 mt-1">
                   Music, Drawing, Painting, Literature

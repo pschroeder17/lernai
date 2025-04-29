@@ -51,11 +51,11 @@ export async function POST(request: NextRequest) {
 
     // Call OpenAI API
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4',
+      model: process.env.OPENAI_MODEL || 'gpt-4.1-mini',
       messages: [
         {
           role: 'system',
-          content: 'You are an expert educator who evaluates student answers fairly and provides constructive feedback. Your feedback is specific, helpful, and encouraging.'
+          content: 'You are an expert educator who evaluates student answers fairly and provides constructive feedback. Your feedback is specific, helpful, and encouraging. Always respond with valid JSON format.'
         },
         {
           role: 'user',
@@ -64,14 +64,33 @@ export async function POST(request: NextRequest) {
       ],
       temperature: 0.3,
       max_tokens: 500,
-      response_format: { type: 'json_object' },
     });
 
     // Extract the generated content
     const evaluationJson = completion.choices[0].message.content;
     
     // Parse the JSON response
-    const evaluation = evaluationJson ? JSON.parse(evaluationJson) : null;
+    let evaluation;
+    try {
+      evaluation = evaluationJson ? JSON.parse(evaluationJson) : null;
+    } catch (error) {
+      console.error('Error parsing JSON response:', error);
+      console.log('Raw response:', evaluationJson);
+      
+      // Attempt to extract JSON from the response if it's not properly formatted
+      const jsonMatch = evaluationJson?.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          evaluation = JSON.parse(jsonMatch[0]);
+        } catch (e) {
+          // Fallback to a default evaluation
+          evaluation = createDefaultEvaluation(userAnswer, correctAnswer);
+        }
+      } else {
+        // Fallback to a default evaluation
+        evaluation = createDefaultEvaluation(userAnswer, correctAnswer);
+      }
+    }
 
     // Return the evaluation
     return NextResponse.json(evaluation, { status: 200 });
@@ -120,4 +139,23 @@ function createPrompt(
   - "improvementTips": specific suggestions for improvement`;
   
   return prompt;
+}
+
+// Helper function to create a default evaluation when parsing fails
+function createDefaultEvaluation(userAnswer: string, correctAnswer: string) {
+  const isCorrect = userAnswer.trim().toLowerCase() === correctAnswer.trim().toLowerCase();
+  
+  return {
+    isCorrect: isCorrect,
+    score: isCorrect ? 100 : 0,
+    feedback: isCorrect
+      ? 'Correct! Well done.'
+      : `Incorrect. The correct answer is: ${correctAnswer}`,
+    explanation: isCorrect
+      ? 'Your answer matches the correct answer.'
+      : `The correct answer is ${correctAnswer}. Make sure to review this concept.`,
+    improvementTips: isCorrect
+      ? 'Continue practicing to reinforce your understanding.'
+      : 'Review the material and try again with the correct answer in mind.'
+  };
 }
