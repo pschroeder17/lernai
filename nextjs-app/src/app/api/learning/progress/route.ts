@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import connectToDatabase from '@/lib/mongodb';
 import LearningProgress from '@/models/LearningProgress';
+import Topic from '@/models/Topic'; // Import Topic model to ensure schema is registered
 import mongoose from 'mongoose';
 
 // GET /api/learning/progress - Get learning progress for the current user

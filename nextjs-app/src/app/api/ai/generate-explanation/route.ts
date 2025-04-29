@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get the request body
-    const { topic, knowledgeLevel, learningStyle } = await request.json();
+    const { topic, knowledgeLevel, learningStyle, additionalContext } = await request.json();
 
     // Validate input
     if (!topic || !knowledgeLevel) {
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create the prompt for OpenAI
-    const prompt = createPrompt(topic, knowledgeLevel, learningStyle);
+    const prompt = createPrompt(topic, knowledgeLevel, learningStyle, additionalContext);
 
     // Call OpenAI API
     const completion = await openai.chat.completions.create({
@@ -78,14 +78,20 @@ export async function POST(request: NextRequest) {
 }
 
 // Helper function to create the prompt
-function createPrompt(topic: string, knowledgeLevel: string, learningStyle?: string): string {
+function createPrompt(topic: string, knowledgeLevel: string, learningStyle?: string, additionalContext?: string): string {
   let prompt = `Explain the concept of ${topic} at a ${knowledgeLevel} level.`;
   
   if (learningStyle) {
     prompt += ` Use a ${learningStyle} learning style.`;
   }
   
-  prompt += ` Include a clear explanation, 2-3 examples, and a summary of key points.`;
+  prompt += ` Format your explanation with clear headings, bullet points where appropriate, and well-structured paragraphs.`;
+  prompt += ` Include a clear explanation, 2-3 examples with real-world applications, and a summary of key points.`;
+  
+  if (additionalContext) {
+    prompt += `\n\nAdditional context: ${additionalContext}\n\n`;
+    prompt += `Based on the assessment questions and answers above, tailor your explanation to address the user's knowledge gaps. Specifically explain the concepts tested in the questions where the user answered incorrectly.`;
+  }
   
   return prompt;
 }

@@ -24,6 +24,11 @@ interface Topic {
 interface AIContent {
   explanation: string;
   examples: string[];
+  assessmentExplanations: {
+    question: string;
+    correctAnswer: string;
+    explanation: string;
+  }[];
   exercises: {
     question: string;
     options: string[];
@@ -47,6 +52,8 @@ export default function TopicDetail() {
   const [currentStep, setCurrentStep] = useState('assessment'); // 'assessment', 'learning', 'practice'
   const [selectedLevel, setSelectedLevel] = useState('');
   const [assessmentAnswers, setAssessmentAnswers] = useState<Record<string, string>>({});
+  const [assessmentResults, setAssessmentResults] = useState<Record<string, boolean>>({});
+  const [showAssessmentResults, setShowAssessmentResults] = useState(false);
   const [aiContent, setAiContent] = useState<AIContent | null>(null);
   const [practiceAnswers, setPracticeAnswers] = useState<Record<number, string>>({});
   const [practiceResults, setPracticeResults] = useState<Record<number, boolean>>({});
@@ -76,8 +83,12 @@ export default function TopicDetail() {
       const data = await response.json();
       setTopic(data.topic);
       
-      // Generate assessment questions
-      generateAssessmentQuestions(data.topic);
+      // Only generate assessment questions if we don't already have them
+      // This prevents double loading
+      if (assessmentQuestions.length === 0) {
+        // Generate assessment questions
+        await generateAssessmentQuestions(data.topic);
+      }
     } catch (err) {
       console.error('Error fetching topic:', err);
       setError('Failed to load topic. Please try again later.');
@@ -114,7 +125,8 @@ export default function TopicDetail() {
         id: `q${index + 1}`,
         question: exercise.question,
         options: exercise.options,
-        correctAnswer: exercise.correctAnswer,
+        // Trim the correctAnswer to avoid whitespace issues
+        correctAnswer: typeof exercise.correctAnswer === 'string' ? exercise.correctAnswer.trim() : exercise.correctAnswer,
       }));
       
       setAssessmentQuestions(questions);
@@ -165,15 +177,40 @@ export default function TopicDetail() {
   const handleAssessmentSubmit = async () => {
     if (!topic) return;
     
+    // First, show the assessment results
+    if (!showAssessmentResults) {
+      // Calculate the results
+      const results: Record<string, boolean> = {};
+      
+      assessmentQuestions.forEach((question) => {
+        // Trim and normalize both answers to avoid whitespace and case sensitivity issues
+        const userAnswer = (assessmentAnswers[question.id] || '').trim().toLowerCase();
+        const correctAnswer = (question.correctAnswer || '').trim().toLowerCase();
+        
+        // Compare normalized answers
+        results[question.id] = userAnswer === correctAnswer;
+        
+        // Log for debugging
+        console.log(`Question ${question.id}:`, {
+          userAnswer,
+          correctAnswer,
+          isCorrect: userAnswer === correctAnswer
+        });
+      });
+      
+      setAssessmentResults(results);
+      setShowAssessmentResults(true);
+      return;
+    }
+    
+    // If results are already shown, proceed to generate content
     setGeneratingContent(true);
     
     try {
       // Calculate the level based on answers
       // This is a simplified version - in a real app, this would be more sophisticated
       const totalQuestions = assessmentQuestions.length;
-      const correctAnswers = assessmentQuestions.filter(
-        (q: AssessmentQuestion) => assessmentAnswers[q.id] === q.correctAnswer
-      ).length;
+      const correctAnswers = Object.values(assessmentResults).filter(result => result).length;
       
       const score = correctAnswers / totalQuestions;
       
@@ -188,8 +225,8 @@ export default function TopicDetail() {
       
       setSelectedLevel(level);
       
-      // Generate AI content based on the determined level
-      const content = await generateAIContent(topic.name, level);
+      // Generate AI content based on the determined level and assessment questions
+      const content = await generateAIContent(topic.name, level, assessmentQuestions, assessmentAnswers);
       setAiContent(content);
       
       // Move to learning step
@@ -206,7 +243,17 @@ export default function TopicDetail() {
   };
 
   // Generate AI content using the API
-  const generateAIContent = async (topicName: string, level: string): Promise<AIContent> => {
+  const generateAIContent = async (
+    topicName: string,
+    level: string,
+    questions: AssessmentQuestion[],
+    answers: Record<string, string>
+  ): Promise<AIContent> => {
+    // Create a string with the assessment questions and answers
+    const assessmentInfo = questions.map(q =>
+      `Question: ${q.question}\nUser's Answer: ${answers[q.id]}\nCorrect Answer: ${q.correctAnswer}\nCorrect: ${answers[q.id] === q.correctAnswer ? 'Yes' : 'No'}`
+    ).join('\n\n');
+    
     // Generate explanation
     const explanationResponse = await fetch('/api/ai/generate-explanation', {
       method: 'POST',
@@ -216,6 +263,8 @@ export default function TopicDetail() {
       body: JSON.stringify({
         topic: topicName,
         knowledgeLevel: level.toLowerCase(),
+        learningStyle: 'structured',
+        additionalContext: `Please include explanations for these assessment questions:\n${assessmentInfo}`
       }),
     });
     
@@ -235,7 +284,7 @@ export default function TopicDetail() {
         topic: topicName,
         knowledgeLevel: level.toLowerCase(),
         exerciseType: 'multiple-choice',
-        count: 2,
+        count: 8,
       }),
     });
     
@@ -245,12 +294,20 @@ export default function TopicDetail() {
     
     const exercisesData = await exercisesResponse.json();
     
+    // Create assessment explanations from the questions
+    const assessmentExplanations = questions.map(q => ({
+      question: q.question,
+      correctAnswer: q.correctAnswer,
+      explanation: `This will be explained in the content below.` // This will be replaced with actual explanations from the AI
+    }));
+    
     return {
       explanation: explanationData.explanation || `Learn about ${topicName} at the ${level} level.`,
       examples: explanationData.examples || [
         'Example 1: This is a simple example to illustrate the concept.',
         'Example 2: This is a more detailed example with step-by-step explanation.',
       ],
+      assessmentExplanations,
       exercises: exercisesData.exercises.exercises || [
         {
           question: `Practice Question 1: What is a key concept in ${topicName}?`,
@@ -261,6 +318,36 @@ export default function TopicDetail() {
           question: `Practice Question 2: How would you apply ${topicName} in a real-world scenario?`,
           options: ['Option A', 'Option B', 'Option C', 'Option D'],
           correctAnswer: 'Option B',
+        },
+        {
+          question: `Practice Question 3: Which of the following best describes ${topicName}?`,
+          options: ['Option A', 'Option B', 'Option C', 'Option D'],
+          correctAnswer: 'Option C',
+        },
+        {
+          question: `Practice Question 4: What is an important principle of ${topicName}?`,
+          options: ['Option A', 'Option B', 'Option C', 'Option D'],
+          correctAnswer: 'Option D',
+        },
+        {
+          question: `Practice Question 5: In what context would ${topicName} be most useful?`,
+          options: ['Option A', 'Option B', 'Option C', 'Option D'],
+          correctAnswer: 'Option A',
+        },
+        {
+          question: `Practice Question 6: What is a common misconception about ${topicName}?`,
+          options: ['Option A', 'Option B', 'Option C', 'Option D'],
+          correctAnswer: 'Option B',
+        },
+        {
+          question: `Practice Question 7: How does ${topicName} relate to other concepts in this field?`,
+          options: ['Option A', 'Option B', 'Option C', 'Option D'],
+          correctAnswer: 'Option C',
+        },
+        {
+          question: `Practice Question 8: What is a practical application of ${topicName}?`,
+          options: ['Option A', 'Option B', 'Option C', 'Option D'],
+          correctAnswer: 'Option D',
         },
       ],
     };
@@ -427,16 +514,32 @@ export default function TopicDetail() {
                               ...assessmentAnswers,
                               [question.id]: option,
                             })}
+                            disabled={showAssessmentResults}
                           />
                           <label
                             htmlFor={`question-${question.id}-option-${index}`}
-                            className="ml-2 block text-sm text-gray-700"
+                            className={`ml-2 block text-sm ${
+                              showAssessmentResults && option === question.correctAnswer
+                                ? 'text-green-700 font-medium'
+                                : showAssessmentResults && assessmentAnswers[question.id] === option && option !== question.correctAnswer
+                                ? 'text-red-700'
+                                : 'text-gray-700'
+                            }`}
                           >
                             {option}
                           </label>
                         </div>
                       ))}
                     </div>
+                    {showAssessmentResults && (
+                      <div className={`mt-3 text-sm ${
+                        assessmentResults[question.id] ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {assessmentResults[question.id]
+                          ? 'Correct! Well done.'
+                          : `Incorrect. The correct answer is: ${question.correctAnswer.trim()}`}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -447,7 +550,7 @@ export default function TopicDetail() {
                   disabled={Object.keys(assessmentAnswers).length < assessmentQuestions.length || generatingContent}
                   className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-300"
                 >
-                  Submit Assessment
+                  {showAssessmentResults ? 'Continue to Learning Content' : 'Check Answers'}
                 </button>
               </div>
             </div>
@@ -463,17 +566,46 @@ export default function TopicDetail() {
               </div>
 
               <div className="prose max-w-none">
-                <h3 className="text-lg font-medium mb-2">Explanation</h3>
-                <p className="mb-6">{aiContent.explanation}</p>
+                <div className="bg-indigo-50 p-4 rounded-lg mb-6">
+                  <h3 className="text-lg font-medium text-indigo-800 mb-2">Your Assessment Results</h3>
+                  <p className="text-indigo-700 mb-2">
+                    Based on your answers, we've determined your knowledge level is: <strong>{selectedLevel}</strong>
+                  </p>
+                  <p className="text-indigo-700">
+                    The content below is tailored to your current understanding of {topic.name}.
+                  </p>
+                </div>
 
-                <h3 className="text-lg font-medium mb-2">Examples</h3>
-                <ul className="list-disc pl-5 mb-6">
-                  {aiContent.examples.map((example: string, index: number) => (
-                    <li key={index} className="mb-2">{example}</li>
+                <h3 className="text-xl font-semibold mb-4">Understanding {topic.name}</h3>
+                <div className="whitespace-pre-line text-gray-800 mb-6">
+                  {aiContent.explanation}
+                </div>
+
+                <h3 className="text-lg font-semibold mb-3">Assessment Review</h3>
+                <div className="mb-6 space-y-4 border-l-4 border-indigo-500 pl-4">
+                  {assessmentQuestions.map((question, index) => (
+                    <div key={index} className="mb-4">
+                      <p className="font-medium">{question.question}</p>
+                      <p className="text-green-700">Correct answer: {question.correctAnswer.trim()}</p>
+                      <p className={assessmentAnswers[question.id]?.trim().toLowerCase() === question.correctAnswer?.trim().toLowerCase() ?
+                        "text-green-600" : "text-red-600"}>
+                        Your answer: {assessmentAnswers[question.id]?.trim()}
+                      </p>
+                    </div>
                   ))}
-                </ul>
+                </div>
 
-                <div className="mt-6">
+                <h3 className="text-lg font-semibold mb-3">Examples</h3>
+                <div className="space-y-4 mb-6">
+                  {aiContent.examples.map((example: string, index: number) => (
+                    <div key={index} className="bg-gray-50 p-3 rounded border-l-4 border-green-500">
+                      <p className="mb-1 font-medium text-green-700">Example {index + 1}</p>
+                      <p>{example}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-8">
                   <button
                     onClick={() => setCurrentStep('practice')}
                     className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
@@ -502,10 +634,14 @@ export default function TopicDetail() {
                             name={`exercise-${index}`}
                             className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
                             checked={practiceAnswers[index] === option}
-                            onChange={() => setPracticeAnswers({
-                              ...practiceAnswers,
-                              [index]: option,
-                            })}
+                            onChange={() => {
+                              // Trim the option to avoid whitespace issues
+                              const trimmedOption = option.trim();
+                              setPracticeAnswers({
+                                ...practiceAnswers,
+                                [index]: trimmedOption,
+                              });
+                            }}
                             disabled={practiceResults[index] !== undefined}
                           />
                           <label
